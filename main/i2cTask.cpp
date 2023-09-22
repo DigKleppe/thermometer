@@ -5,8 +5,6 @@
  *  Created on: Aug 9, 2021
  *      Author: dig
  */
-
-
 #include "esp_system.h"
 //#include "driver/gpio.h"
 #include "driver/i2c.h"
