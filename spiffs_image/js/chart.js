@@ -17,7 +17,7 @@ var MINUTESPERTICK = 5;// log interval
 var LOGDAYS = 7;
 var MAXPOINTS = LOGDAYS * 24 * 60 / MINUTESPERTICK;
 
-var displayNames = ["", "t1", "t2", "t3", "t4", "Tref"];
+var displayNames = ["", "t1", "t2", "t3", "t4", "t5"];
 var cbIDs =["","T1cb", "T2cb", "T3cb", "T4cb", "T5cb"]; 
 var chartSeries = [-1,-1,-1,-1,-1];
 
@@ -245,12 +245,10 @@ function timer() {
 							if (value < -100)
 								arr[m] = "--";
 							document.getElementById(displayNames[m]).innerHTML = arr[m];
+							if (chartSeries[m] != -1 )   
+								plotTemperature(chartSeries[m] , arr[m]);
 						}
-						plotTemperature(1, arr[1]); // t1
-						plotTemperature(2, arr[2]); // t2
-						plotTemperature(3, arr[3]); // t3
-						plotTemperature(4, arr[4]); // t4
-						plotTemperature(5, arr[5]); // tref
+						
 						updateLastDayTimeLabel(tempData);
 						temperaturesChart.draw(tempData, temperatureOptions);
 					}
