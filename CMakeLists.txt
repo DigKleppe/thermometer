@@ -8,4 +8,3 @@ string(REPLACE " " "_" ProjectId ${ProjectId})
 set(PROJECT_VER "0.0.0.4")
 
 project(${ProjectId})
-

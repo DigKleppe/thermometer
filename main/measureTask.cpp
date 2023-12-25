@@ -25,6 +25,8 @@
 #include "measureTask.h"
 #include "i2cTask.h"
 
+#include "guiTask.h"
+#include "log.h"
 static const char *TAG = "measureTask";
 
 #define TIMER_BASE_CLK			(APB_CLK_FREQ)  /*!< Frequency of the clock on the input of the timer groups */
@@ -48,10 +50,10 @@ bool sensorDataIsSend;
 uint64_t timer_counter_value;
 int irqcntr;
 measValues_t measValues;
-log_t tLog[ MAXLOGVALUES];
-//static log_t lastVal;
-int logTxIdx;
-int logRxIdx;
+//log_t tLog[ MAXLOGVALUES];
+////static log_t lastVal;
+//int logTxIdx;
+//int logRxIdx;
 
 Averager refAverager(REFAVERAGES);  // for reference resistor
 Averager ntcAverager[NR_NTCS];
@@ -61,7 +63,7 @@ float refTimerValue;
 const gpio_num_t NTCpins[] = { NTC1_PIN, NTC2_PIN, NTC3_PIN, NTC4_PIN };
 uint8_t err;
 gptimer_handle_t gptimer = NULL;
-uint32_t timeStamp = 1;
+
 
 //  called when capacitor is discharged
 static void IRAM_ATTR gpio_isr_handler(void *arg) {
@@ -93,49 +95,49 @@ static void timerInit()
 	ESP_ERROR_CHECK(gptimer_start(gptimer));
 }
 
-void testLog(void) {
-	int len;
-	char buf[50];
-//	logTxIdx = 0;
-	for (int p = 0; p < 20; p++) {
-
-		tLog[logTxIdx].timeStamp = timeStamp++;
-		for (int n = 0; n < NR_NTCS; n++) {
-
-			tLog[logTxIdx].temperature[n] = p + n;
-		}
-		tLog[logTxIdx].refTemperature = tmpTemperature; // from I2C TMP117
-		logTxIdx++;
-		if (logTxIdx >= MAXLOGVALUES )
-			logTxIdx = 0;
-	}
-
-	scriptState = 0;
-	do {
-		len = getLogScript(buf, 50);
-		buf[len] = 0;
-		printf("%s\r",buf);
-	} while (len);
-
-	for (int p = 0; p < 5; p++) {
-
-		tLog[logTxIdx].timeStamp = timeStamp++;
-		for (int n = 0; n < NR_NTCS; n++) {
-
-			tLog[logTxIdx].temperature[n] = p + n;
-		}
-		tLog[logTxIdx].refTemperature = tmpTemperature; // from I2C TMP117
-		logTxIdx++;
-		if (logTxIdx >= MAXLOGVALUES )
-			logTxIdx = 0;
-	}
-	do {
-		len = getNewMeasValuesScript(buf, 50);
-		buf[len] = 0;
-		printf("%s\r",buf);
-	} while (len);
-	printf("\r\n *************\r\n");
-}
+//void testLog(void) {
+//	int len;
+//	char buf[50];
+////	logTxIdx = 0;
+//	for (int p = 0; p < 20; p++) {
+//
+//		tLog[logTxIdx].timeStamp = timeStamp++;
+//		for (int n = 0; n < NR_NTCS; n++) {
+//
+//			tLog[logTxIdx].temperature[n] = p + n;
+//		}
+//		tLog[logTxIdx].refTemperature = tmpTemperature; // from I2C TMP117
+//		logTxIdx++;
+//		if (logTxIdx >= MAXLOGVALUES )
+//			logTxIdx = 0;
+//	}
+//
+//	scriptState = 0;
+//	do {
+//		len = getLogScript(buf, 50);
+//		buf[len] = 0;
+//		printf("%s\r",buf);
+//	} while (len);
+//
+//	for (int p = 0; p < 5; p++) {
+//
+//		tLog[logTxIdx].timeStamp = timeStamp++;
+//		for (int n = 0; n < NR_NTCS; n++) {
+//
+//			tLog[logTxIdx].temperature[n] = p + n;
+//		}
+//		tLog[logTxIdx].refTemperature = tmpTemperature; // from I2C TMP117
+//		logTxIdx++;
+//		if (logTxIdx >= MAXLOGVALUES )
+//			logTxIdx = 0;
+//	}
+//	do {
+//		len = getNewMeasValuesScript(buf, 50);
+//		buf[len] = 0;
+//		printf("%s\r",buf);
+//	} while (len);
+//	printf("\r\n *************\r\n");
+//}
 
 void measureTask(void *pvParameters) {
 	TickType_t xLastWakeTime;
@@ -145,6 +147,11 @@ void measureTask(void *pvParameters) {
 	int logPrescaler = LOGINTERVAL;
 	time_t now;
 	struct tm timeinfo;
+	char line[MAXCHARSPERLINE];
+	displayMssg_t displayMssg;
+	displayMssg.str1 = line;
+	log_t log;
+
 #ifdef SIMULATE
 	float x = 0;
 
@@ -291,23 +298,41 @@ void measureTask(void *pvParameters) {
 			ntc = 0;
 			printf("\n");
 			refSensorAverager.write(tmpTemperature * 1000.0);
-			timeStamp++;
 			time (&now);
 			localtime_r(&now, &timeinfo);  // no use in low power mode
 			if (lastminute != timeinfo.tm_min) {
 				lastminute = timeinfo.tm_min;   // every minute
 				if (logPrescaler-- == 0) {
 					logPrescaler = LOGINTERVAL;
-					tLog[logTxIdx].timeStamp = timeStamp;
+
 					for (int n = 0; n < NR_NTCS; n++) {
-						tLog[logTxIdx].temperature[n] = ntcAverager[n].average()/1000.0;
+						log.temperature[n] = ntcAverager[n].average()/1000.0;
 					}
-					tLog[logTxIdx].refTemperature = refSensorAverager.average()/1000.0; // from I2C TMP117
-					logTxIdx++;
-					if (logTxIdx >= MAXLOGVALUES)
-						logTxIdx = 0;
+					log.refTemperature = refSensorAverager.average()/1000.0; // from I2C TMP117
+					addToLog(log);
 				}
 			}
+
+			displayMssg.showTime = 0;
+			for (int n = 0; n < NR_NTCS; n++) {
+				displayMssg.line = n;
+				if (lastTemperature[n] == ERRORTEMP)
+					snprintf (line , MAXCHARSPERLINE,"t%d : -" ,n+1);
+				else
+					snprintf (line , MAXCHARSPERLINE,"t%d : %2.2f" ,n+1,  lastTemperature[n] );
+
+				xQueueSend(displayMssgBox, &displayMssg, 0);
+				xQueueReceive(displayReadyMssgBox, &displayMssg, 100);
+			}
+			displayMssg.line = NR_NTCS;
+			if ( refSensorAverager.average()/1000.0 == ERRORTEMP)
+				snprintf (line , MAXCHARSPERLINE,"ref: -");
+			else
+				snprintf (line , MAXCHARSPERLINE,"ref: %2.3f" , refSensorAverager.average()/1000.0 );
+
+			xQueueSend(displayMssgBox, &displayMssg, 0);
+			xQueueReceive(displayReadyMssgBox, &displayMssg, 100);
+
 			vTaskDelayUntil(&xLastWakeTime, MEASINTERVAL * 1000 / portTICK_PERIOD_MS);
 		}
 	}
@@ -400,7 +425,7 @@ switch (scriptState) {
 case 0:
 	scriptState++;
 
-	len = sprintf(pBuffer + len, "%ld,", timeStamp);
+	len = sprintf(pBuffer + len, "%ld,", timeStamp++);
 	for (int n = 0; n < NR_NTCS; n++) {
 		len += sprintf(pBuffer + len, "%3.2f,", lastTemperature[n] -userSettings.temperatureOffset[n]);
 	}
@@ -444,68 +469,24 @@ return 0;
 int getNewMeasValuesScript(char *pBuffer, int count) {
 
 int left, len = 0;
-if (logRxIdx != (logTxIdx)) {  // something to send?
+if (dayLogRxIdx != (dayLogTxIdx)) {  // something to send?
 	do {
-		len += sprintf(pBuffer + len, "%ld,", tLog[logRxIdx].timeStamp);
+		len += sprintf(pBuffer + len, "%ld,", dayLog[dayLogRxIdx].timeStamp);
 		for (int n = 0; n < NR_NTCS; n++) {
-			len += sprintf(pBuffer + len, "%3.2f,", tLog[logRxIdx].temperature[n]- userSettings.temperatureOffset[n]);
+			len += sprintf(pBuffer + len, "%3.2f,", dayLog[dayLogRxIdx].temperature[n]- userSettings.temperatureOffset[n]);
 		}
-		len += sprintf(pBuffer + len, "%3.3f\n", tLog[logRxIdx].refTemperature);
-		logRxIdx++;
-		if (logRxIdx > MAXLOGVALUES)
-			logRxIdx = 0;
+		len += sprintf(pBuffer + len, "%3.3f\n", dayLog[dayLogRxIdx].refTemperature);
+		dayLogRxIdx++;
+		if (dayLogRxIdx > MAXDAYLOGVALUES)
+			dayLogRxIdx = 0;
 		left = count - len;
 
-		} while ((logRxIdx != logTxIdx) && (left > 40));
+		} while ((dayLogRxIdx != dayLogTxIdx) && (left > 40));
 
 	}
 	return len;
 }
-// reads all avaiable data from log
-// issued as first request.
 
-int getLogScript(char *pBuffer, int count) {
-	static int oldTimeStamp = 0;
-	static int logsToSend = 0;
-	int left, len = 0;
-	int n;
-	if (scriptState == 0) { // find oldest value in cyclic logbuffer
-		logRxIdx = 0;
-		oldTimeStamp = 0;
-		for (n = 0; n < MAXLOGVALUES; n++) {
-			if (tLog[logRxIdx].timeStamp < oldTimeStamp)
-				break;
-			else {
-				oldTimeStamp = tLog[logRxIdx++].timeStamp;
-			}
-		}
-		if (tLog[logRxIdx].timeStamp == 0) { // then log not full
-			// not written yet?
-			logRxIdx = 0;
-			logsToSend = n;
-		} else
-			logsToSend = MAXLOGVALUES;
-		scriptState++;
-	}
-	if (scriptState == 1) { // send complete buffer
-		if (logsToSend) {
-			do {
-				len += sprintf(pBuffer + len, "%ld,", tLog[logRxIdx].timeStamp);
-				for (n = 0; n < NR_NTCS; n++) {
-					len += sprintf(pBuffer + len, "%3.2f,", tLog[logRxIdx].temperature[n] - userSettings.temperatureOffset[n]);
-				}
-				len += sprintf(pBuffer + len, "%3.3f\n", tLog[logRxIdx].refTemperature);
-				logRxIdx++;
-				if (logRxIdx >= MAXLOGVALUES)
-					logRxIdx = 0;
-				left = count - len;
-				logsToSend--;
-
-			} while (logsToSend && (left > 40));
-		}
-	}
-	return len;
-}
 
 
 // values of setcal not used, calibrate ( offset only against reference TMP117

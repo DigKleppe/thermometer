@@ -16,14 +16,6 @@
 
 void I2CTask(void *arg);
 
-
-typedef struct {
-	char * line1;
-	char * line2;
-	char * line3;
-	int timeToDisplay; // in ms
-}displayMssg_t;
-
 extern  QueueHandle_t displayMssgbox;
 
 float getTmp117Temperature (void);

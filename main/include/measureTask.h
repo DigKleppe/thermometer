@@ -10,6 +10,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 
 #define NR_NTCS			4
 
@@ -26,15 +27,15 @@
 #define RREF_PIN		GPIO_NUM_21
 #define NTC1_PIN		GPIO_NUM_26
 #define NTC2_PIN		GPIO_NUM_27
-#define NTC3_PIN		GPIO_NUM_17
-#define NTC4_PIN		GPIO_NUM_18
+#define NTC3_PIN		GPIO_NUM_25
+#define NTC4_PIN		GPIO_NUM_19
 
 
 #define MEASINTERVAL			 	5  //interval for sensor in seconds
 #define LOGINTERVAL					5   //minutes
 #define AVGERAGESAMPLES				((LOGINTERVAL * 60)/(MEASINTERVAL))
 
-#define MAXLOGVALUES				((24*60)/LOGINTERVAL)
+
 
 
 #define NOCAL 						99999
@@ -51,13 +52,12 @@ typedef struct {
 	float temperature[NR_NTCS];
 } calValues_t;
 
-typedef struct {
-	int32_t timeStamp;
-	float temperature[NR_NTCS];
-	float refTemperature;
-} log_t;
+//typedef struct {
+//	int32_t timeStamp;
+//	float temperature[NR_NTCS];
+//	float refTemperature;
+//} log_t;
 
-extern log_t tLog[ MAXLOGVALUES];
 
 typedef struct {
 	char averegedValue[MAXSTRLEN+1];

@@ -66,8 +66,12 @@ function plotTemperature(channel, value) {
 			if (tempData.getNumberOfRows() > MAXPOINTS == true)
 				tempData.removeRows(0, tempData.getNumberOfRows() - MAXPOINTS);
 		}
-		value = parseFloat(value); // from string to float
-		tempData.setValue(tempData.getNumberOfRows() - 1, channel, value);
+		if (value != '--'){
+			if ( value > -50.0) {
+				value = parseFloat(value); // from string to float
+				tempData.setValue(tempData.getNumberOfRows() - 1, channel, value);
+			}
+		}
 	}
 }
 

@@ -10,7 +10,7 @@
 
 
 	extern float NTCreferenceValue;
-#define ERRORTEMP -9999
+#define ERRORTEMP -9999.0
 
 //// for vishay NTCLE100E3 104 ( 100k 2% )
 //#define RNTC25 		100000.0

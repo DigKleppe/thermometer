@@ -1,5 +1,5 @@
 /*
-
+. ~/ESP/esp-idf-v5.1.1//export.sh
  . /home/dig/esp/esp-idf/export.sh
  idf.py monitor -p /dev/ttyUSB2
 
@@ -37,6 +37,8 @@
 #include "main.h"
 #include "i2cTask.h"
 #include "measureTask.h"
+#include "guiTask.h"
+
 
 #define LOWPOWERDELAY  				5 // minutes before going to sleepmode after powerup (no TCP anymore)
 #define WAKEUP_INTERVAL				60 // seconds
@@ -119,6 +121,9 @@ void printTaskInfo() {
 extern "C" {
 void app_main() {
 	esp_err_t err;
+	displayMssg_t recDdisplayMssg;
+	char line[33];
+	int timeOut = 0;
 
 	bool toggle = false;
 
@@ -145,17 +150,51 @@ void app_main() {
 	setBootPartitionToFactory();
 
 	err = loadSettings();
+	xTaskCreate(&guiTask, "guiTask", 1024 * 4, NULL, 0, NULL);
+	do
+	{
+		vTaskDelay(10);
+	} while (!displayReady);
+
 	i2c_master_init();
 	xTaskCreate(&I2CTask, "I2CTask", 3500, NULL, 2, &I2Ctaskh);
-	xTaskCreate(&measureTask, "measureTask", 3500, NULL, 2, &measureTaskh);
 
-	wifiConnect(&connectTaskh);
+	recDdisplayMssg.str1 = line;
+
+	recDdisplayMssg.showTime = 0;
+	recDdisplayMssg.line = 7;
+	sprintf (line , "Verbinden met");
+	xQueueSend(displayMssgBox, &recDdisplayMssg, 0);
+	xQueueReceive(displayReadyMssgBox, &recDdisplayMssg, portMAX_DELAY);
+	recDdisplayMssg.line = 8;
+	recDdisplayMssg.showTime = 500;
+	sprintf (line,"%s",wifiSettings.SSID);
+	xQueueSend(displayMssgBox, &recDdisplayMssg, 0);
+	xQueueReceive(displayReadyMssgBox, &recDdisplayMssg, portMAX_DELAY);
+
+	wifiConnect();
+
+	xTaskCreate(&measureTask, "measureTask", 3500, NULL, 2, &measureTaskh);
 
 	do {
 		toggle = !toggle;
 		gpio_set_level(LED_PIN, toggle);
 		vTaskDelay(500 / portTICK_PERIOD_MS);
-	} while (!connected);
+	//	timeOut++;
+	} while ((connectStatus != IP_RECEIVED) && (timeOut < 20));
+
+	if (connectStatus == IP_RECEIVED){
+		recDdisplayMssg.line = 7;
+		snprintf (line, sizeof(line),"%s",wifiSettings.SSID);
+		recDdisplayMssg.showTime = 0;
+		xQueueSend(displayMssgBox, &recDdisplayMssg, 500/portTICK_PERIOD_MS);
+		xQueueReceive(displayReadyMssgBox, &recDdisplayMssg, portMAX_DELAY);
+		recDdisplayMssg.line = 8;
+		recDdisplayMssg.showTime = 500;
+		sprintf (line,"%s",myIpAddress);
+		xQueueSend(displayMssgBox, &recDdisplayMssg, 0);
+		xQueueReceive(displayReadyMssgBox, &recDdisplayMssg, portMAX_DELAY);
+	}
 
 	newStorageVersion[0] = 0;
 	xTaskCreate(&updateSpiffsTask, "updateSpiffsTask", 8192, (void*) newStorageVersion, 5, &otaTaskh);
@@ -167,12 +206,11 @@ void app_main() {
 		strcpy(userSettings.spiffsVersion, newStorageVersion);
 		saveSettings();
 	}
-
 	while (1) {
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 		upTime++;
 
-		if (!connected) {
+		if ((connectStatus != IP_RECEIVED)) {
 			toggle = !toggle;
 			gpio_set_level(LED_PIN, toggle);
 		} else {
