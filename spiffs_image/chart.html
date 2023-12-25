@@ -13,17 +13,19 @@
 	});
 	google.charts.setOnLoadCallback(initChart);
 	google.load("visualization", "1", {packages:["corechart"]});
+	
 </script>
   </head>
   <body>
+
     <table width="428" height="30">
       <tbody>
         <tr>
-          <th>T1</th>
-          <th>T2</th>
-          <th>T3</th>
-          <th>T4</th>
-          <th>Tref</th>
+          <th>t1</th>
+          <th>t2</th>
+          <th>t3</th>
+          <th>t4</th>
+          <th>tref</th>
         </tr>
         <tr>
           <td>
@@ -45,6 +47,19 @@
       </tbody>
     </table>
     <div id="temperaturesChart" style="width: 900px; height: 500px"></div>
+    
+    <input type="checkbox" id="T1cb" class="save-cb-state" name="T1cb" value="yes">
+	<label for="T1cb">t1</label><br>
+	<input type="checkbox" id="T2cb" class="save-cb-state" name="T2cb" value="yes">
+	<label for="T2cb">t2</label><br>
+	<input type="checkbox" id="T3cb" class="save-cb-state"  name="T3cb" value="yes">
+	<label for="T3cb">t3</label><br>
+	<input type="checkbox" id="T4cb" class="save-cb-state"  name="T4cb" value="yes">
+	<label for="T4cb">t4</label><br>
+	<input type="checkbox" id="T5cb" class="save-cb-state"  name="T5cb" value="yes">
+	<label for="T5cb">tref</label><br>
+	
+	    
     <a href="settings.html">Instellingen</a>
   </body>
       

@@ -1,6 +1,4 @@
-
 var tempData;
-
 var chartRdy = false;
 var tick = 0;
 var dontDraw = false;
@@ -14,11 +12,15 @@ var simMssgCnts = 0;
 var lastTimeStamp = 0;
 var REQINTERVAL = 30; // sec
 
+
 var MINUTESPERTICK = 5;// log interval 
 var LOGDAYS = 7;
 var MAXPOINTS = LOGDAYS * 24 * 60 / MINUTESPERTICK;
 
-var displayNames = ["", "T1", "T2", "T3", "T4", "Tref"];
+var displayNames = ["", "t1", "t2", "t3", "t4", "Tref"];
+var cbIDs =["","T1cb", "T2cb", "T3cb", "T4cb", "T5cb"]; 
+var chartSeries = [-1,-1,-1,-1,-1];
+
 var NRItems = displayNames.length;
 
 var dayNames = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
@@ -41,13 +43,13 @@ var temperatureOptions = {
 	vAxes: {
 		0: { logScale: false },
 	},
-	series: {
+/*	series: {
 		0: { targetAxisIndex: 0 },// T1
 		1: { targetAxisIndex: 0 },// T2
 		2: { targetAxisIndex: 0 },// T3
 		3: { targetAxisIndex: 0 },// T4
 		4: { targetAxisIndex: 0 },// Tref
-	},
+	},*/
 };
 
 function clear() {
@@ -77,24 +79,61 @@ function plotTemperature(channel, value) {
 
 function initChart() {
 
-	temperaturesChart = new google.visualization.LineChart(document.getElementById('temperaturesChart'));
+	initCBs();
+	
+		
+	setTimeout(function() { initTimer() }, 100);  // wait until the checkboxes are updated
+
+/*	temperaturesChart = new google.visualization.LineChart(document.getElementById('temperaturesChart'));
 	tempData = new google.visualization.DataTable();
 	tempData.addColumn('string', 'Time');
+
+	
+	for (var m = 1; m < NRItems; m++) { // time not used for now 
+		var cb = document.getElementById(cbIDs[m]);
+		if (cb) 
+			if (cb.is(":checked"));
+				tempData.addColumn('number', displayNames[m]);
+	}*/
+/*	
 	tempData.addColumn('number', 't1');
 	tempData.addColumn('number', 't2');
 	tempData.addColumn('number', 't3');
 	tempData.addColumn('number', 't4');
 	tempData.addColumn('number', 'tRef');
+*/
 
+/*	if (SIMULATE) {
+		simplot();
+	}
+	else {
+		startTimer();
+	}*/
+}
+
+function initTimer() {
+	var activeSeries = 1;
+	temperaturesChart = new google.visualization.LineChart(document.getElementById('temperaturesChart'));
+	tempData = new google.visualization.DataTable();
+	tempData.addColumn('string', 'Time');
+	
+	for (var m = 1; m < NRItems; m++) { // time not used for now 
+		var cb = document.getElementById(cbIDs[m]);
+		if (cb) {
+			if (cb.checked) {
+				tempData.addColumn('number', displayNames[m]);
+				chartSeries[m] = activeSeries;
+				activeSeries++;
+			}
+		}
+	}
 	chartRdy = true;
-	dontDraw = false;
 	if (SIMULATE) {
 		simplot();
 	}
 	else {
 		startTimer();
 	}
-
 }
 
 function startTimer() {
@@ -157,44 +196,19 @@ function plotArray(str) {
 	var today = now.getDay();
 	var hours = now.getHours();
 	var minutes = now.getMinutes();
-	var quartersToday = (hours * 4 + minutes / 15);
-	var daysInLog = ((nrPoints - quartersToday) / (24 * 4)); // complete days
-	if (daysInLog < 0)
-		daysInLog = 0;
-	daysInLog -= daysInLog % 1;
-	var dayIdx = today - daysInLog - 1; // where to start 
-	if (dayIdx < 0)
-		dayIdx += LOGDAYS;
-	var quartersFirstDay = nrPoints - quartersToday - (daysInLog * 24 * 4);// first day probably incomplete
-	if (quartersFirstDay < 0)
-		quartersFirstDay = nrPoints;
-
-	var quartersToday = 24 * 4;
 
 	for (var p = 0; p < nrPoints; p++) {
 		arr = arr2[p].split(",");
 		if (arr.length >= NRItems) {
-			if (quartersFirstDay > 0) {
-				quartersFirstDay--;
-				if (quartersFirstDay <= 0) {
-					dayIdx++;
-				}
-			}
-			else {
-				if (quartersToday > 0)
-					quartersToday--;
-				if ((quartersToday <= 0) || (p == (nrPoints - 1))) {
-					quartersToday = 24 * 4;
-
-				}
-			}
-			if (dayIdx >= LOGDAYS)
-				dayIdx = 0;
-			plotTemperature(1, arr[1]); // t1
-			plotTemperature(2, arr[2]); // t2
+			for (var m = 1; m < NRItems; m++) { // time not used for now
+			if (	chartSeries[m] != -1 )   
+				plotTemperature(chartSeries[m] , arr[m]); 
+				
+			/*plotTemperature(2, arr[2]); // t2
 			plotTemperature(3, arr[3]); // t3
 			plotTemperature(4, arr[4]); // t4
-			plotTemperature(5, arr[5]); // tref
+			plotTemperature(5, arr[5]); // tref*/
+			}
 		}
 	}
 	if (nrPoints == 1) { // then single point added 
@@ -253,5 +267,47 @@ function timer() {
 }
 
 
+// Avoid scoping issues by encapsulating code inside anonymous function
+function initCBs () {
+  // variable to store our current state
+  var cbstate;
+  
+  // bind to the onload event
+  window.addEventListener('load', function() {
+    // Get the current state from localstorage
+    // State is stored as a JSON string
+    cbstate = JSON.parse(localStorage['CBState'] || '{}');
+  
+    // Loop through state array and restore checked 
+    // state for matching elements
+    for(var i in cbstate) {
+      var el = document.querySelector('input[name="' + i + '"]');
+      if (el) el.checked = true;
+    }
+  
+    // Get all checkboxes that you want to monitor state for
+    var cb = document.getElementsByClassName('save-cb-state');
+  
+    // Loop through results and ...
+    for(var i = 0; i < cb.length; i++) {
+  
+      //bind click event handler
+      cb[i].addEventListener('click', function(evt) {
+        // If checkboxe is checked then save to state
+        if (this.checked) {
+          cbstate[this.name] = true;
+        }
+    
+    // Else remove from state
+        else if (cbstate[this.name]) {
+          delete cbstate[this.name];
+        }
+    
+    // Persist state
+        localStorage.CBState = JSON.stringify(cbstate);
+      });
+    }
+  });
+};
 
 
