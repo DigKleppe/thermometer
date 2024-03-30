@@ -11,7 +11,9 @@ var presc = 1;
 var simMssgCnts = 0;
 var lastTimeStamp = 0;
 var REQINTERVAL = 30; // sec
-
+var firstRequest = true;
+var plotTimer = 6; // every 60 seconds plot averaged value
+var rows = 0;
 
 var MINUTESPERTICK = 5;// log interval 
 var LOGDAYS = 7;
@@ -77,38 +79,51 @@ function plotTemperature(channel, value) {
 	}
 }
 
+function loadCBs (){
+   var cbstate;
+   
+   console.log( "Reading CBs");
+   
+	 // Get the current state from localstorage
+    // State is stored as a JSON string
+    cbstate = JSON.parse(localStorage['CBState'] || '{}');
+  
+    // Loop through state array and restore checked 
+    // state for matching elements
+    for(var i in cbstate) {
+      var el = document.querySelector('input[name="' + i + '"]');
+      if (el) el.checked = true;
+    }
+  
+    // Get all checkboxes that you want to monitor state for
+    var cb = document.getElementsByClassName('save-cb-state');
+  
+    // Loop through results and ...
+    for(var i = 0; i < cb.length; i++) {
+  
+      //bind click event handler
+      cb[i].addEventListener('click', function(evt) {
+        // If checkboxe is checked then save to state
+        if (this.checked) {
+          cbstate[this.name] = true;
+        }
+    
+    // Else remove from state
+        else if (cbstate[this.name]) {
+          delete cbstate[this.name];
+        }
+    
+    // Persist state
+        localStorage.CBState = JSON.stringify(cbstate);
+      });
+    }
+    console.log( "CBs read" );
+    initTimer();
+  };
+	
+
 function initChart() {
-
-	initCBs();
-	
-		
-	setTimeout(function() { initTimer() }, 100);  // wait until the checkboxes are updated
-
-/*	temperaturesChart = new google.visualization.LineChart(document.getElementById('temperaturesChart'));
-	tempData = new google.visualization.DataTable();
-	tempData.addColumn('string', 'Time');
-
-	
-	for (var m = 1; m < NRItems; m++) { // time not used for now 
-		var cb = document.getElementById(cbIDs[m]);
-		if (cb) 
-			if (cb.is(":checked"));
-				tempData.addColumn('number', displayNames[m]);
-	}*/
-/*	
-	tempData.addColumn('number', 't1');
-	tempData.addColumn('number', 't2');
-	tempData.addColumn('number', 't3');
-	tempData.addColumn('number', 't4');
-	tempData.addColumn('number', 'tRef');
-*/
-
-/*	if (SIMULATE) {
-		simplot();
-	}
-	else {
-		startTimer();
-	}*/
+	window.addEventListener('load', loadCBs() );
 }
 
 function initTimer() {
@@ -132,29 +147,17 @@ function initTimer() {
 		simplot();
 	}
 	else {
-		startTimer();
+		setInterval(function() { timer() }, 1000);
 	}
 }
 
-function startTimer() {
-	if (!SIMULATE)
-		setInterval(function() { timer() }, 1000);
-}
-
-var firstRequest = true;
-var plotTimer = 6; // every 60 seconds plot averaged value
-var rows = 0;
 
 function updateLastDayTimeLabel(data) {
-
 	var ms = Date.now();
-
 	var date = new Date(ms);
 	var labelText = date.getHours() + ':' + date.getMinutes();
 	data.setValue(data.getNumberOfRows() - 1, 0, labelText);
-
 }
-
 
 function updateAllDayTimeLabels(data) {
 	var rows = data.getNumberOfRows();
@@ -203,11 +206,6 @@ function plotArray(str) {
 			for (var m = 1; m < NRItems; m++) { // time not used for now
 			if (	chartSeries[m] != -1 )   
 				plotTemperature(chartSeries[m] , arr[m]); 
-				
-			/*plotTemperature(2, arr[2]); // t2
-			plotTemperature(3, arr[3]); // t3
-			plotTemperature(4, arr[4]); // t4
-			plotTemperature(5, arr[5]); // tref*/
 			}
 		}
 	}
@@ -265,47 +263,5 @@ function timer() {
 }
 
 
-// Avoid scoping issues by encapsulating code inside anonymous function
-function initCBs () {
-  // variable to store our current state
-  var cbstate;
-  
-  // bind to the onload event
-  window.addEventListener('load', function() {
-    // Get the current state from localstorage
-    // State is stored as a JSON string
-    cbstate = JSON.parse(localStorage['CBState'] || '{}');
-  
-    // Loop through state array and restore checked 
-    // state for matching elements
-    for(var i in cbstate) {
-      var el = document.querySelector('input[name="' + i + '"]');
-      if (el) el.checked = true;
-    }
-  
-    // Get all checkboxes that you want to monitor state for
-    var cb = document.getElementsByClassName('save-cb-state');
-  
-    // Loop through results and ...
-    for(var i = 0; i < cb.length; i++) {
-  
-      //bind click event handler
-      cb[i].addEventListener('click', function(evt) {
-        // If checkboxe is checked then save to state
-        if (this.checked) {
-          cbstate[this.name] = true;
-        }
-    
-    // Else remove from state
-        else if (cbstate[this.name]) {
-          delete cbstate[this.name];
-        }
-    
-    // Persist state
-        localStorage.CBState = JSON.stringify(cbstate);
-      });
-    }
-  });
-};
 
 
